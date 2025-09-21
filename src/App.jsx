@@ -39,7 +39,7 @@ function App() {
   useEffect(() => {
     if (!mapRef.current) {
       // allow very high max zoom (per user request)
-      mapRef.current = L.map('map', { maxZoom: 25 }).setView([51.505, -0.09], 13);
+      mapRef.current = L.map('map', { maxZoom: 25 }).setView([50.77, 6.1], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 25,
@@ -83,6 +83,7 @@ function App() {
     const statMax = downloads.length > 0 ? Math.round(Math.max(...downloads)) : 100;
     const statMid = Math.round((statMin + statMax) / 2);
     const heatmapData = {
+      min: statMin-1 || 0,
       max: statMax || 100,
       data: points.map(pt => ({ lat: pt.lat, lng: pt.lng, value: pt.download || 0 }))
     };
@@ -96,11 +97,11 @@ function App() {
       // configure HeatmapOverlay (heatmap.js + Leaflet plugin)
       const cfg = {
         radius: 25,
+        minOpacity: 0.5,
         maxOpacity: 0.8,
+        blur: 0.5,
         scaleRadius: false,
         useLocalExtrema: false,
-        latField: 'lat',
-        lngField: 'lng',
         valueField: 'value'
       };
       const heatmapLayer = new HeatmapOverlay(cfg);
