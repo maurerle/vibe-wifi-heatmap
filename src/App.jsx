@@ -59,9 +59,7 @@ function App() {
         div.style.borderRadius = '6px';
         div.style.boxShadow = '0 2px 6px rgba(0,0,0,0.12)';
         div.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div>
-          <div style="font-size:12px;color:#333;">Intensity ≈ download speed</div>
-          <div style="display:flex;gap:6px;margin-top:6px;"><span style="width:18px;height:10px;background:rgba(25,118,210,0.1);display:inline-block;border-radius:2px"></span><span style="font-size:12px">low</span></div>
-          <div style="display:flex;gap:6px;margin-top:4px;"><span style="width:18px;height:10px;background:rgba(25,118,210,0.6);display:inline-block;border-radius:2px"></span><span style="font-size:12px">high</span></div>`;
+          <div style="font-size:12px;color:#333;">Intensity ≈ download speed</div>`;
           return div;
       };
       legend.addTo(mapRef.current);
@@ -80,49 +78,27 @@ function App() {
       mapRef.current._heatLayer = null;
     }
     // Build heat data: [lat, lng, intensity]
+    const downloads = points.map(p => (p.download || 0)).filter(v => !isNaN(v));
+    const statMin = Math.round(Math.min(...downloads)) || 0;
+    const statMax = Math.round(Math.max(...downloads)) || 100;
+    const statMid = Math.round((statMin + statMax) / 2);
     const heatData = points.map(pt => {
       // intensity based on download speed, normalized
-      const intensity = Math.min(1, (pt.download || 0) / 100);
+      const intensity = (pt.download - statMin || 0) / statMax;
+      console.log(intensity)
       return [pt.lat, pt.lng, intensity];
     });
-    // compute gradient colors based on download values so legend and heatmap match
-    let lowColor = '#1976d2';
-    let midColor = '#ffb74d';
-    let highColor = '#e53935';
-    let statMin = 0, statMid = 0, statMax = 0;
-    const downloads = points.map(p => (p.download || 0)).filter(v => !isNaN(v));
-    if (downloads.length > 0) {
-      statMin = Math.round(Math.min(...downloads));
-      statMax = Math.round(Math.max(...downloads));
-      statMid = Math.round((statMin + statMax) / 2);
-      const hexToRgb = (hex) => hex.replace('#','').match(/.{2}/g).map(h=>parseInt(h,16));
-      const rgbToHex = (r,g,b) => '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
-      const mix = (c1, c2, t) => {
-        const r = Math.round(c1[0] + (c2[0]-c1[0])*t);
-        const g = Math.round(c1[1] + (c2[1]-c1[1])*t);
-        const b = Math.round(c1[2] + (c2[2]-c1[2])*t);
-        return rgbToHex(r,g,b);
-      };
-      const blue = hexToRgb('#1976d2');
-      const orange = hexToRgb('#ffb74d');
-      const red = hexToRgb('#e53935');
-      const colorFor = (v) => {
-        if (statMax === statMin) return rgbToHex(...blue);
-        const norm = (v - statMin) / (statMax - statMin);
-        if (norm <= 0.5) return mix(blue, orange, norm / 0.5);
-        return mix(orange, red, (norm - 0.5) / 0.5);
-      };
-      lowColor = colorFor(statMin);
-      midColor = colorFor(statMid);
-      highColor = colorFor(statMax);
-    }
+    
     if (heatData.length > 0) {
       const gradient = {
-        0.0: lowColor,
-        0.5: midColor,
-        1.0: highColor,
+        [0]: 'blue',
+        [0.5]: 'orange',
+        [1]: 'red',
       };
-      const heat = L.heatLayer(heatData, { radius: 25, blur: 0, maxZoom: 20, minOpacity: 0.1, gradient }).addTo(mapRef.current);
+      console.log(gradient);
+      const heat = L.heatLayer(heatData, { radius: 25, blur: 0, maxZoom: 20, minOpacity: 0.1 })
+      heat.setOptions({gradient: gradient});
+      heat.addTo(mapRef.current);
       mapRef.current._heatLayer = heat;
     }
       // Update legend dynamically based on download values
@@ -135,9 +111,9 @@ function App() {
             // reuse computed statMin/statMid/statMax and colors
             legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div>
               <div style="font-size:12px;color:#333;margin-bottom:6px;">Intensity ≈ download (Mbps)</div>
-              <div style="display:flex;align-items:center;gap:8px;"> <span style="width:18px;height:10px;background:${lowColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMin}</span> </div>
-              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:${midColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMid}</span> </div>
-              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:${highColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMax}</span> </div>`;
+              <div style="display:flex;align-items:center;gap:8px;"> <span style="width:18px;height:10px;background:blue;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMin}</span> </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:orange;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMid}</span> </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:red;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMax}</span> </div>`;
           }
         }
       } catch (e) {
