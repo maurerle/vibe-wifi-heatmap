@@ -180,6 +180,9 @@ function App() {
 
   const speedtestRef = useReactRef(null);
 
+  // file input ref for import
+  const fileInputRef = useRef(null);
+
   const runSpeedTest = () => {
     setTesting(true);
     setSpeedResult(null);
@@ -271,8 +274,61 @@ function App() {
             <button onClick={() => { setShowPoints(p => { const v = !p; localStorage.setItem('show_points', JSON.stringify(v)); return v; }); }} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: showPoints ? '#4caf50' : '#eee', color: showPoints ? '#fff' : '#333', border: 'none', cursor: 'pointer' }}>
               {showPoints ? 'Hide Points' : 'Show Points'}
             </button>
-            <button onClick={() => setCurrentLocation(null)} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: '#e57373', color: '#fff', border: 'none', cursor: 'pointer' }}>
-              Clear Location
+            {/* Clear Location button removed per user request */}
+            <button onClick={() => {
+                // Clear stored points from state and localStorage
+                setPoints([]);
+                savePoints([]);
+              }} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: '#d32f2f', color: '#fff', border: 'none', cursor: 'pointer' }}>
+              Clear Data
+            </button>
+            <button onClick={() => {
+                try {
+                  const dataStr = JSON.stringify(points || [], null, 2);
+                  const blob = new Blob([dataStr], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'wifi_points.json';
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                } catch (e) {
+                  console.error('Export failed', e);
+                }
+              }} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: '#1976d2', color: '#fff', border: 'none', cursor: 'pointer' }}>
+              Export Data
+            </button>
+            <input ref={fileInputRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
+                const f = e.target.files && e.target.files[0];
+                if (!f) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                  try {
+                    const parsed = JSON.parse(ev.target.result);
+                    if (!Array.isArray(parsed)) throw new Error('Invalid format: expected an array');
+                    // basic validation: each item should have lat and lng
+                    const cleaned = parsed.map(it => ({
+                      lat: Number(it.lat),
+                      lng: Number(it.lng),
+                      download: it.download == null ? null : Number(it.download),
+                      upload: it.upload == null ? null : Number(it.upload),
+                    })).filter(it => !isNaN(it.lat) && !isNaN(it.lng));
+                    setPoints(cleaned);
+                    savePoints(cleaned);
+                  } catch (err) {
+                    console.error('Import failed', err);
+                    alert('Failed to import points: ' + (err && err.message ? err.message : 'Invalid file'));
+                  } finally {
+                    // reset input so same file can be re-selected later
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }
+                };
+                reader.readAsText(f);
+              }} />
+            <button onClick={() => fileInputRef.current && fileInputRef.current.click()} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: '#00796b', color: '#fff', border: 'none', cursor: 'pointer' }}>
+              Import Data
             </button>
             <div style={{ marginTop: '1em' }}>
               <strong>Current Location:</strong> {currentLocation ? `${currentLocation.lat.toFixed(5)}, ${currentLocation.lng.toFixed(5)}` : 'Not set'}
