@@ -105,11 +105,27 @@ function App() {
     document.body.appendChild(container);
     // Start the speedtest
     speedtestRef.current = new SpeedTest({
-      container,
       autostart: true,
-      onFinish: result => {
-        const download = Math.round(result.downloadSpeedMbps * 100) / 100;
-        const upload = Math.round(result.uploadSpeedMbps * 100) / 100;
+      measurements: [
+        { type: 'latency', numPackets: 5 },
+        { type: 'download', bytes: 1e5, count: 9 },
+        { type: 'upload', bytes: 1e5, count: 9 },
+      ]
+    });
+    speedtestRef.current.onError = () => {
+        setSpeedResult({ error: 'Speedtest failed.' });
+        setTesting(false);
+        if (speedtestRef.current) {
+          speedtestRef.current = null;
+        }
+        if (container) {
+          container.remove();
+        }
+      }
+    speedtestRef.current.onFinish = results => {
+        console.log(results.getSummary())
+        const download = Math.round(results.downloadSpeedMbps * 100) / 100;
+        const upload = Math.round(results.uploadSpeedMbps * 100) / 100;
         // Store result for current location
         let updated = false;
         const newPoints = points.map(pt => {
@@ -132,25 +148,12 @@ function App() {
         setTesting(false);
         // Clean up widget
         if (speedtestRef.current) {
-          speedtestRef.current.remove();
           speedtestRef.current = null;
         }
         if (container) {
           container.remove();
         }
-      },
-      onError: () => {
-        setSpeedResult({ error: 'Speedtest failed.' });
-        setTesting(false);
-        if (speedtestRef.current) {
-          speedtestRef.current.remove();
-          speedtestRef.current = null;
-        }
-        if (container) {
-          container.remove();
-        }
-      },
-    });
+      }
   };
 
   return (
@@ -171,12 +174,20 @@ function App() {
             {testing && (
               <div style={{ marginTop: '1em' }}>
                 <span role="status" aria-live="polite">
-                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ marginRight: '0.5em', verticalAlign: 'middle', animation: 'spin 1s linear infinite' }}>
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ marginRight: '0.5em', verticalAlign: 'middle', display: 'inline-block' }} className="wifi-spinner">
                     <circle cx="16" cy="16" r="14" stroke="#1976d2" strokeWidth="4" fill="none" />
                   </svg>
                   Running speedtest...
                 </span>
-                <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+              {/* Spinner animation style */}
+              <style>{`
+                .wifi-spinner {
+                  animation: wifi-spin 1s linear infinite;
+                }
+                @keyframes wifi-spin {
+                  100% { transform: rotate(360deg); }
+                }
+              `}</style>
               </div>
             )}
             <button onClick={() => setEditLocation(!editLocation)} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: editLocation ? '#ffa726' : '#eee', color: editLocation ? '#fff' : '#333', border: 'none', cursor: 'pointer' }}>
