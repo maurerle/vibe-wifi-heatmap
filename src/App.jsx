@@ -113,9 +113,11 @@ function App() {
       autostart: true,
       measurements: [
         { type: 'latency', numPackets: 5 },
-        { type: 'download', bytes: 1e5, count: 9 },
-        { type: 'upload', bytes: 1e5, count: 9 },
-      ]
+        { type: 'download', bytes: 1e6, count: 9 },
+        { type: 'upload', bytes: 1e6, count: 9 },
+      ],
+      logAimApiUrl: '',
+
     });
     speedtestRef.current.onError = () => {
         setSpeedResult({ error: 'Speedtest failed.' });
@@ -128,9 +130,11 @@ function App() {
         }
       }
     speedtestRef.current.onFinish = results => {
-        console.log(results.getSummary())
-        const download = Math.round(results.download * 100) / 100;
-        const upload = Math.round(results.upload * 100) / 100;
+        const summary = results.getSummary()
+        const download = Math.round(summary.download * 100) / 100 / 1e6;
+        const upload = Math.round(summary.upload * 100) / 100 / 1e6;
+
+        console.log(`Download: ${download} Mbps, Upload: ${upload} Mbps`);
         // Store result for current location
         let updated = false;
         const newPoints = points.map(pt => {
