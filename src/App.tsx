@@ -43,11 +43,11 @@ export function parsePointsFromJson(jsonStr: string): Point[] {
 }
 
 function App(): React.ReactElement {
-  const mapRef = useRef<any>(null)
+  const mapRef = useRef<L.Map | null>(null)
   const [points, setPoints] = useState<Point[]>(getStoredPoints())
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [testing, setTesting] = useState(false)
-  const [speedResult, setSpeedResult] = useState<any>(null)
+  const [speedResult, setSpeedResult] = useState<{ download?: number; upload?: number; error?: string } | null>(null)
   const [showPoints, setShowPoints] = useState<boolean>(() => {
     try {
       return JSON.parse(localStorage.getItem('show_points') || 'true') ?? true
@@ -64,7 +64,7 @@ function App(): React.ReactElement {
   })
 
   useEffect(() => {
-    if (!mapRef.current) {
+  if (!mapRef.current) {
       // allow very high max zoom (per user request)
       mapRef.current = L.map('map', { maxZoom: 25 }).setView([50.77, 6.1], 13)
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -73,7 +73,7 @@ function App(): React.ReactElement {
       }).addTo(mapRef.current)
 
       // Allow user to set a point by clicking on the map
-      mapRef.current.on('click', function (e: any) {
+      mapRef.current.on('click', function (e: L.LeafletMouseEvent) {
         setCurrentLocation({ lat: e.latlng.lat, lng: e.latlng.lng })
       })
 
@@ -95,36 +95,36 @@ function App(): React.ReactElement {
     }
     // Clear existing markers
     try {
-      mapRef.current.eachLayer((layer: any) => {
+      mapRef.current?.eachLayer((layer: L.Layer) => {
         if (layer instanceof L.Marker || layer instanceof L.Circle) {
-          mapRef.current.removeLayer(layer)
+          mapRef.current && mapRef.current.removeLayer(layer)
         }
       })
     } catch {
       // ignore
     }
     // Remove previous heat layer if present
-    if ((mapRef.current as any)._heatLayer) {
+    if ((mapRef.current as any)?._heatLayer) {
       try {
-        mapRef.current.removeLayer((mapRef.current as any)._heatLayer)
+        mapRef.current && mapRef.current.removeLayer((mapRef.current as any)._heatLayer)
       } catch {
         // ignore
       }
       ;(mapRef.current as any)._heatLayer = null
     }
     // Build heat data as objects for heatmap.js: {lat, lng, value}
-    const metricValues = points.map(p => (p && (p as any)[heatMetric]) || 0).filter(v => !isNaN(v))
+  const metricValues = points.map(p => (p && (p as unknown as any)[heatMetric]) || 0).filter(v => !isNaN(v))
     const statMin = metricValues.length > 0 ? Math.round(Math.min(...metricValues)) : 0
     const statMax = metricValues.length > 0 ? Math.round(Math.max(...metricValues)) : 100
     const statMid = Math.round((statMin + statMax) / 2)
     const heatmapData = {
       min: Math.max(0, statMin - 1),
       max: statMax || 100,
-      data: points.map(pt => ({ lat: pt.lat, lng: pt.lng, value: (pt && (pt as any)[heatMetric]) || 0 })),
+      data: points.map(pt => ({ lat: pt.lat, lng: pt.lng, value: (pt && (pt as unknown as any)[heatMetric]) || 0 })),
     }
 
-    if ((mapRef.current as any)._heatLayer) {
-      try { mapRef.current.removeLayer((mapRef.current as any)._heatLayer) } catch { /* ignore */ }
+    if ((mapRef.current as any)?._heatLayer) {
+      try { mapRef.current && mapRef.current.removeLayer((mapRef.current as any)._heatLayer) } catch { /* ignore */ }
       ;(mapRef.current as any)._heatLayer = null
     }
 
@@ -142,7 +142,7 @@ function App(): React.ReactElement {
       const heatmapLayer: any = new (HeatmapOverlay as any)(cfg)
       // set data
       heatmapLayer.setData(heatmapData)
-      mapRef.current.addLayer(heatmapLayer)
+      mapRef.current && mapRef.current.addLayer(heatmapLayer)
       ;(mapRef.current as any)._heatLayer = heatmapLayer
     }
     // Update legend dynamically based on download values
@@ -165,18 +165,18 @@ function App(): React.ReactElement {
       L.marker([currentLocation.lat, currentLocation.lng], {
         draggable: false,
       })
-        .addTo(mapRef.current)
+        .addTo(mapRef.current as L.Map)
         .bindPopup('Current Location')
     }
     // Add small circle markers for each point (show numeric values) if enabled
-    if ((mapRef.current as any)._pointLayer) {
-      try { mapRef.current.removeLayer((mapRef.current as any)._pointLayer) } catch { /* ignore */ }
+    if ((mapRef.current as any)?._pointLayer) {
+      try { mapRef.current && mapRef.current.removeLayer((mapRef.current as any)._pointLayer) } catch { /* ignore */ }
       ;(mapRef.current as any)._pointLayer = null
     }
     if (showPoints) {
-      const pointLayer: any = L.layerGroup()
+      const pointLayer: L.LayerGroup = L.layerGroup()
       points.forEach(pt => {
-        const cm: any = L.circleMarker([pt.lat, pt.lng], {
+        const cm: L.CircleMarker = L.circleMarker([pt.lat, pt.lng], {
           radius: 6,
           color: '#fff',
           weight: 1,
@@ -186,7 +186,7 @@ function App(): React.ReactElement {
         pointLayer.addLayer(cm)
       })
       if (points.length > 0) {
-        pointLayer.addTo(mapRef.current)
+        pointLayer.addTo(mapRef.current as L.Map)
         ;(mapRef.current as any)._pointLayer = pointLayer
       }
     }
@@ -208,7 +208,7 @@ function App(): React.ReactElement {
     }
   }, [])
 
-  const speedtestRef = useRef<any>(null)
+  const speedtestRef = useRef<InstanceType<typeof SpeedTest> | null>(null)
 
   // file input ref for import
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -217,7 +217,7 @@ function App(): React.ReactElement {
     setTesting(true)
     setSpeedResult(null)
     if (speedtestRef.current) {
-      try { speedtestRef.current.remove() } catch { /* ignore */ }
+      try { speedtestRef.current.remove && speedtestRef.current.remove() } catch { /* ignore */ }
       speedtestRef.current = null
     }
     // Create a container for the speedtest widget
