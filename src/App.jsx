@@ -50,18 +50,21 @@ function App() {
         mapRef.current.removeLayer(layer);
       }
     });
-    // Add markers for each point
-    points.forEach(pt => {
-      L.circle([pt.lat, pt.lng], {
-        color: 'blue',
-        fillColor: '#30f',
-        fillOpacity: 0.5,
-        radius: 20,
-        //radius: 20 + pt.download * 2,
-      }).addTo(mapRef.current).bindPopup(
-        `Download: ${pt.download} Mbps<br/>Upload: ${pt.upload} Mbps`
-      );
+    // Remove previous heat layer if present
+    if (mapRef.current._heatLayer) {
+      try { mapRef.current.removeLayer(mapRef.current._heatLayer); } catch {}
+      mapRef.current._heatLayer = null;
+    }
+    // Build heat data: [lat, lng, intensity]
+    const heatData = points.map(pt => {
+      // intensity based on download speed, normalized
+      const intensity = Math.min(1, (pt.download || 0) / 100);
+      return [pt.lat, pt.lng, intensity];
     });
+    if (heatData.length > 0) {
+      const heat = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 17 }).addTo(mapRef.current);
+      mapRef.current._heatLayer = heat;
+    }
     // Show current location marker
     if (currentLocation) {
       L.marker([currentLocation.lat, currentLocation.lng], {
