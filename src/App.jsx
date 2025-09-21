@@ -35,6 +35,9 @@ function App() {
   const [showPoints, setShowPoints] = useState(() => {
     try { return JSON.parse(localStorage.getItem('show_points')) ?? true; } catch { return true; }
   });
+  const [heatMetric, setHeatMetric] = useState(() => {
+    try { return localStorage.getItem('heat_metric') || 'download'; } catch { return 'download'; }
+  });
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -78,14 +81,14 @@ function App() {
       mapRef.current._heatLayer = null;
     }
     // Build heat data as objects for heatmap.js: {lat, lng, value}
-    const downloads = points.map(p => (p.download || 0)).filter(v => !isNaN(v));
-    const statMin = downloads.length > 0 ? Math.round(Math.min(...downloads)) : 0;
-    const statMax = downloads.length > 0 ? Math.round(Math.max(...downloads)) : 100;
+    const metricValues = points.map(p => (p && p[heatMetric]) || 0).filter(v => !isNaN(v));
+    const statMin = metricValues.length > 0 ? Math.round(Math.min(...metricValues)) : 0;
+    const statMax = metricValues.length > 0 ? Math.round(Math.max(...metricValues)) : 100;
     const statMid = Math.round((statMin + statMax) / 2);
     const heatmapData = {
-      min: statMin-1 || 0,
+      min: Math.max(0, statMin - 1),
       max: statMax || 100,
-      data: points.map(pt => ({ lat: pt.lat, lng: pt.lng, value: pt.download || 0 }))
+      data: points.map(pt => ({ lat: pt.lat, lng: pt.lng, value: (pt && pt[heatMetric]) || 0 }))
     };
 
     if (mapRef.current._heatLayer) {
@@ -117,9 +120,10 @@ function App() {
           if (!points || points.length === 0) {
             legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div><div style="font-size:12px;color:#666">No data</div>`;
           } else {
-            // reuse computed statMin/statMid/statMax and colors
+            // reuse computed statMin/statMid/statMax and colors (metric-aware)
+            const metricLabel = heatMetric === 'upload' ? 'upload' : 'download';
             legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div>
-              <div style="font-size:12px;color:#333;margin-bottom:6px;">Intensity ≈ download (Mbps)</div>
+              <div style="font-size:12px;color:#333;margin-bottom:6px;">Intensity ≈ ${metricLabel} (Mbps)</div>
               <div style="display:flex;align-items:center;gap:8px;"> <span style="width:18px;height:10px;background:blue;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMin}</span> </div>
               <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:orange;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMid}</span> </div>
               <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:red;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMax}</span> </div>`;
@@ -161,7 +165,7 @@ function App() {
         mapRef.current._pointLayer = pointLayer;
       }
     }
-  }, [points, currentLocation, editLocation, showPoints]);
+  }, [points, currentLocation, editLocation, showPoints, heatMetric]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -267,6 +271,10 @@ function App() {
             <button onClick={() => setEditLocation(!editLocation)} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: editLocation ? '#ffa726' : '#eee', color: editLocation ? '#fff' : '#333', border: 'none', cursor: 'pointer' }}>
               {editLocation ? 'Finish Editing Location' : 'Edit Location'}
             </button>
+            <select value={heatMetric} onChange={(e) => { setHeatMetric(e.target.value); localStorage.setItem('heat_metric', e.target.value); }} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.45em 1em', borderRadius: '8px', background: '#fff', color: '#333', border: '1px solid #ddd', cursor: 'pointer' }}>
+              <option value="download">Color by: Download</option>
+              <option value="upload">Color by: Upload</option>
+            </select>
             <button onClick={() => { setShowPoints(p => { const v = !p; localStorage.setItem('show_points', JSON.stringify(v)); return v; }); }} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: showPoints ? '#4caf50' : '#eee', color: showPoints ? '#fff' : '#333', border: 'none', cursor: 'pointer' }}>
               {showPoints ? 'Hide Points' : 'Show Points'}
             </button>
