@@ -66,7 +66,7 @@ function App() {
       };
       legend.addTo(mapRef.current);
         // remember the legend DOM so we can update it when points change
-        try { mapRef.current._legendDiv = legend.getContainer(); } catch (e) { mapRef.current._legendDiv = null; }
+  try { mapRef.current._legendDiv = legend.getContainer(); } catch { mapRef.current._legendDiv = null; }
     }
     // Clear existing markers
     mapRef.current.eachLayer(layer => {
@@ -76,7 +76,7 @@ function App() {
     });
     // Remove previous heat layer if present
     if (mapRef.current._heatLayer) {
-      try { mapRef.current.removeLayer(mapRef.current._heatLayer); } catch {}
+      try { mapRef.current.removeLayer(mapRef.current._heatLayer); } catch { /* ignore */ }
       mapRef.current._heatLayer = null;
     }
     // Build heat data as objects for heatmap.js: {lat, lng, value}
@@ -91,7 +91,7 @@ function App() {
     };
 
     if (mapRef.current._heatLayer) {
-      try { mapRef.current.removeLayer(mapRef.current._heatLayer); } catch {}
+      try { mapRef.current.removeLayer(mapRef.current._heatLayer); } catch { /* ignore */ }
       mapRef.current._heatLayer = null;
     }
 
@@ -128,7 +128,7 @@ function App() {
               <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:red;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMax}</span> </div>`;
           }
         }
-      } catch (e) {
+      } catch {
         // ignore legend update errors
       }
     // Show current location marker
@@ -140,7 +140,7 @@ function App() {
     }
     // Add small circle markers for each point (show numeric values) if enabled
     if (mapRef.current._pointLayer) {
-      try { mapRef.current.removeLayer(mapRef.current._pointLayer); } catch {}
+      try { mapRef.current.removeLayer(mapRef.current._pointLayer); } catch { /* ignore */ }
       mapRef.current._pointLayer = null;
     }
     if (showPoints) {
@@ -171,7 +171,7 @@ function App() {
             mapRef.current.setView([pos.coords.latitude, pos.coords.longitude], 16);
           }
         },
-        err => {
+        () => {
           setCurrentLocation(null);
         }
       );
