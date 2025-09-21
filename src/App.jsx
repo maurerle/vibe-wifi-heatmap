@@ -31,7 +31,6 @@ function App() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [testing, setTesting] = useState(false);
   const [speedResult, setSpeedResult] = useState(null);
-  const [editLocation, setEditLocation] = useState(false);
   const [showPoints, setShowPoints] = useState(() => {
     try { return JSON.parse(localStorage.getItem('show_points')) ?? true; } catch { return true; }
   });
@@ -135,13 +134,9 @@ function App() {
     // Show current location marker
     if (currentLocation) {
       L.marker([currentLocation.lat, currentLocation.lng], {
-        draggable: editLocation,
+        draggable: false,
       }).addTo(mapRef.current)
-        .bindPopup('Current Location')
-        .on('dragend', function (e) {
-          const { lat, lng } = e.target.getLatLng();
-          setCurrentLocation({ lat, lng });
-        });
+        .bindPopup('Current Location');
     }
     // Add small circle markers for each point (show numeric values) if enabled
     if (mapRef.current._pointLayer) {
@@ -165,7 +160,7 @@ function App() {
         mapRef.current._pointLayer = pointLayer;
       }
     }
-  }, [points, currentLocation, editLocation, showPoints, heatMetric]);
+  }, [points, currentLocation, showPoints, heatMetric]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -268,9 +263,7 @@ function App() {
             <button onClick={runSpeedTest} disabled={testing || !currentLocation} style={{ fontSize: '1.1em', padding: '0.7em 2em', borderRadius: '8px', background: '#1976d2', color: '#fff', border: 'none', cursor: testing ? 'not-allowed' : 'pointer', boxShadow: '0 2px 8px rgba(25,118,210,0.08)' }}>
               {testing ? 'Testing...' : 'Run Speedtest at Current Location'}
             </button>
-            <button onClick={() => setEditLocation(!editLocation)} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: editLocation ? '#ffa726' : '#eee', color: editLocation ? '#fff' : '#333', border: 'none', cursor: 'pointer' }}>
-              {editLocation ? 'Finish Editing Location' : 'Edit Location'}
-            </button>
+            {/* Edit Location removed (marker is not draggable) */}
             <select value={heatMetric} onChange={(e) => { setHeatMetric(e.target.value); localStorage.setItem('heat_metric', e.target.value); }} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.45em 1em', borderRadius: '8px', background: '#fff', color: '#333', border: '1px solid #ddd', cursor: 'pointer' }}>
               <option value="download">Color by: Download</option>
               <option value="upload">Color by: Upload</option>
@@ -314,7 +307,7 @@ function App() {
               <strong>Saved Points:</strong> {points.length}
             </div>
             <div style={{ marginTop: '1em', fontSize: '0.95em', color: '#888' }}>
-              <span>Tip: Click on the map to set your location. Drag the marker to adjust.</span>
+              <span>Tip: Click on the map to set your location.</span>
             </div>
           </div>
         </div>
