@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
-import "leaflet.heat";
+import HeatmapOverlay from 'heatmap.js/plugins/leaflet-heatmap';
 
 import SpeedTest from '@cloudflare/speedtest';
 import { useRef as useReactRef } from 'react';
@@ -77,29 +77,37 @@ function App() {
       try { mapRef.current.removeLayer(mapRef.current._heatLayer); } catch {}
       mapRef.current._heatLayer = null;
     }
-    // Build heat data: [lat, lng, intensity]
+    // Build heat data as objects for heatmap.js: {lat, lng, value}
     const downloads = points.map(p => (p.download || 0)).filter(v => !isNaN(v));
-    const statMin = Math.round(Math.min(...downloads)) || 0;
-    const statMax = Math.round(Math.max(...downloads)) || 100;
+    const statMin = downloads.length > 0 ? Math.round(Math.min(...downloads)) : 0;
+    const statMax = downloads.length > 0 ? Math.round(Math.max(...downloads)) : 100;
     const statMid = Math.round((statMin + statMax) / 2);
-    const heatData = points.map(pt => {
-      // intensity based on download speed, normalized
-      const intensity = (pt.download - statMin || 0) / statMax;
-      console.log(intensity)
-      return [pt.lat, pt.lng, intensity];
-    });
-    
-    if (heatData.length > 0) {
-      const gradient = {
-        [0]: 'blue',
-        [0.5]: 'orange',
-        [1]: 'red',
+    const heatmapData = {
+      max: statMax || 100,
+      data: points.map(pt => ({ lat: pt.lat, lng: pt.lng, count: pt.download || 0 }))
+    };
+
+    if (mapRef.current._heatLayer) {
+      try { mapRef.current.removeLayer(mapRef.current._heatLayer); } catch {}
+      mapRef.current._heatLayer = null;
+    }
+
+    if (heatmapData.data.length > 0) {
+      // configure HeatmapOverlay (heatmap.js + Leaflet plugin)
+      const cfg = {
+        radius: 25,
+        maxOpacity: 0.8,
+        scaleRadius: false,
+        useLocalExtrema: false,
+        latField: 'lat',
+        lngField: 'lng',
+        valueField: 'value'
       };
-      console.log(gradient);
-      const heat = L.heatLayer(heatData, { radius: 25, blur: 0, maxZoom: 20, minOpacity: 0.1 })
-      heat.setOptions({gradient: gradient});
-      heat.addTo(mapRef.current);
-      mapRef.current._heatLayer = heat;
+      const heatmapLayer = new HeatmapOverlay(cfg);
+      mapRef.current.addLayer(heatmapLayer);
+      // set data
+      heatmapLayer.setData(heatmapData);
+      mapRef.current._heatLayer = heatmapLayer;
     }
       // Update legend dynamically based on download values
       try {
