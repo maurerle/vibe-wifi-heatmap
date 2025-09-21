@@ -78,7 +78,7 @@ function App(): React.ReactElement {
       })
 
       // Add a legend control
-      const legend = L.control({ position: 'bottomright' })
+      const legend = new L.Control({ position: 'bottomright' })
       legend.onAdd = function () {
         const div = L.DomUtil.create('div', 'info legend') as HTMLDivElement
         div.style.background = 'rgba(255,255,255,0.9)'
