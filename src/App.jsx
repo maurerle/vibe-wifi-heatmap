@@ -32,6 +32,9 @@ function App() {
   const [testing, setTesting] = useState(false);
   const [speedResult, setSpeedResult] = useState(null);
   const [editLocation, setEditLocation] = useState(false);
+  const [showPoints, setShowPoints] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('show_points')) ?? true; } catch { return true; }
+  });
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -44,6 +47,24 @@ function App() {
       mapRef.current.on('click', function (e) {
         setCurrentLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
       });
+
+      // Add a legend control
+      const legend = L.control({ position: 'bottomright' });
+      legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'info legend');
+        div.style.background = 'rgba(255,255,255,0.9)';
+        div.style.padding = '8px';
+        div.style.borderRadius = '6px';
+        div.style.boxShadow = '0 2px 6px rgba(0,0,0,0.12)';
+        div.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div>
+          <div style="font-size:12px;color:#333;">Intensity ≈ download speed</div>
+          <div style="display:flex;gap:6px;margin-top:6px;"><span style="width:18px;height:10px;background:rgba(25,118,210,0.1);display:inline-block;border-radius:2px"></span><span style="font-size:12px">low</span></div>
+          <div style="display:flex;gap:6px;margin-top:4px;"><span style="width:18px;height:10px;background:rgba(25,118,210,0.6);display:inline-block;border-radius:2px"></span><span style="font-size:12px">high</span></div>`;
+          return div;
+      };
+      legend.addTo(mapRef.current);
+        // remember the legend DOM so we can update it when points change
+        try { mapRef.current._legendDiv = legend.getContainer(); } catch (e) { mapRef.current._legendDiv = null; }
     }
     // Clear existing markers
     mapRef.current.eachLayer(layer => {
@@ -63,9 +84,55 @@ function App() {
       return [pt.lat, pt.lng, intensity];
     });
     if (heatData.length > 0) {
-      const heat = L.heatLayer(heatData, { radius: 25, blur: 0, maxZoom: 17 }).addTo(mapRef.current);
+      const heat = L.heatLayer(heatData, { radius: 25, blur: 0, maxZoom: 20 }).addTo(mapRef.current);
       mapRef.current._heatLayer = heat;
     }
+      // Update legend dynamically based on download values
+      try {
+        const legendDiv = mapRef.current && mapRef.current._legendDiv;
+        if (legendDiv) {
+          if (!points || points.length === 0) {
+            legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div><div style="font-size:12px;color:#666">No data</div>`;
+          } else {
+            const downloads = points.map(p => (p.download || 0)).filter(v => !isNaN(v));
+            const min = Math.round(Math.min(...downloads));
+            const max = Math.round(Math.max(...downloads));
+            const mid = Math.round((min + max) / 2);
+            // color interpolation helper
+            const hexToRgb = (hex) => hex.replace('#','').match(/.{2}/g).map(h=>parseInt(h,16));
+            const rgbToHex = (r,g,b) => '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+            const mix = (c1, c2, t) => {
+              const r = Math.round(c1[0] + (c2[0]-c1[0])*t);
+              const g = Math.round(c1[1] + (c2[1]-c1[1])*t);
+              const b = Math.round(c1[2] + (c2[2]-c1[2])*t);
+              return rgbToHex(r,g,b);
+            };
+            const blue = hexToRgb('#1976d2');
+            const orange = hexToRgb('#ffb74d');
+            const red = hexToRgb('#e53935');
+            const colorFor = (v) => {
+              if (max === min) return rgbToHex(...blue);
+              // normalize 0..1 within min..max
+              const norm = (v - min) / (max - min);
+              // split at 0.5: blue->orange->red
+              if (norm <= 0.5) {
+                return mix(blue, orange, norm / 0.5);
+              }
+              return mix(orange, red, (norm - 0.5) / 0.5);
+            };
+            const lowColor = colorFor(min);
+            const midColor = colorFor(mid);
+            const highColor = colorFor(max);
+            legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div>
+              <div style="font-size:12px;color:#333;margin-bottom:6px;">Intensity ≈ download (Mbps)</div>
+              <div style="display:flex;align-items:center;gap:8px;"> <span style="width:18px;height:10px;background:${lowColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${min}</span> </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:${midColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${mid}</span> </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:${highColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${max}</span> </div>`;
+          }
+        }
+      } catch (e) {
+        // ignore legend update errors
+      }
     // Show current location marker
     if (currentLocation) {
       L.marker([currentLocation.lat, currentLocation.lng], {
@@ -77,7 +144,29 @@ function App() {
           setCurrentLocation({ lat, lng });
         });
     }
-  }, [points, currentLocation, editLocation]);
+    // Add small circle markers for each point (show numeric values) if enabled
+    if (mapRef.current._pointLayer) {
+      try { mapRef.current.removeLayer(mapRef.current._pointLayer); } catch {}
+      mapRef.current._pointLayer = null;
+    }
+    if (showPoints) {
+      const pointLayer = L.layerGroup();
+      points.forEach(pt => {
+        const cm = L.circleMarker([pt.lat, pt.lng], {
+          radius: 6,
+          color: '#fff',
+          weight: 1,
+          fillColor: '#1976d2',
+          fillOpacity: 0.9,
+        }).bindPopup(`Download: ${pt.download} Mbps<br/>Upload: ${pt.upload} Mbps`);
+        pointLayer.addLayer(cm);
+      });
+      if (points.length > 0) {
+        pointLayer.addTo(mapRef.current);
+        mapRef.current._pointLayer = pointLayer;
+      }
+    }
+  }, [points, currentLocation, editLocation, showPoints]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -131,8 +220,8 @@ function App() {
       }
     speedtestRef.current.onFinish = results => {
         const summary = results.getSummary()
-        const download = Math.round(summary.download * 100) / 100 / 1e6;
-        const upload = Math.round(summary.upload * 100) / 100 / 1e6;
+        const download = Math.round(summary.download / 1e6 * 100) / 100;
+        const upload = Math.round(summary.upload / 1e6 * 100) / 100;
 
         console.log(`Download: ${download} Mbps, Upload: ${upload} Mbps`);
         // Store result for current location
@@ -180,27 +269,11 @@ function App() {
             <button onClick={runSpeedTest} disabled={testing || !currentLocation} style={{ fontSize: '1.1em', padding: '0.7em 2em', borderRadius: '8px', background: '#1976d2', color: '#fff', border: 'none', cursor: testing ? 'not-allowed' : 'pointer', boxShadow: '0 2px 8px rgba(25,118,210,0.08)' }}>
               {testing ? 'Testing...' : 'Run Speedtest at Current Location'}
             </button>
-            {testing && (
-              <div style={{ marginTop: '1em' }}>
-                <span role="status" aria-live="polite">
-                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ marginRight: '0.5em', verticalAlign: 'middle', display: 'inline-block' }} className="wifi-spinner">
-                    <circle cx="16" cy="16" r="14" stroke="#1976d2" strokeWidth="4" fill="none" />
-                  </svg>
-                  Running speedtest...
-                </span>
-              {/* Spinner animation style */}
-              <style>{`
-                .wifi-spinner {
-                  animation: wifi-spin 1s linear infinite;
-                }
-                @keyframes wifi-spin {
-                  100% { transform: rotate(360deg); }
-                }
-              `}</style>
-              </div>
-            )}
             <button onClick={() => setEditLocation(!editLocation)} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: editLocation ? '#ffa726' : '#eee', color: editLocation ? '#fff' : '#333', border: 'none', cursor: 'pointer' }}>
               {editLocation ? 'Finish Editing Location' : 'Edit Location'}
+            </button>
+            <button onClick={() => { setShowPoints(p => { const v = !p; localStorage.setItem('show_points', JSON.stringify(v)); return v; }); }} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: showPoints ? '#4caf50' : '#eee', color: showPoints ? '#fff' : '#333', border: 'none', cursor: 'pointer' }}>
+              {showPoints ? 'Hide Points' : 'Show Points'}
             </button>
             <button onClick={() => setCurrentLocation(null)} style={{ marginLeft: '1em', fontSize: '1em', padding: '0.5em 1.5em', borderRadius: '8px', background: '#e57373', color: '#fff', border: 'none', cursor: 'pointer' }}>
               Clear Location
