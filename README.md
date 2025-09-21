@@ -1,6 +1,3 @@
-
-<!-- Short, friendly README designed for new visitors -->
-
 # Vibe WiFi — Client-side WiFi Coverage Heatmap
 
 A tiny, privacy-first single-page app to build a WiFi coverage heatmap from in-browser speedtests.
@@ -80,28 +77,3 @@ Credits
 -------
 Built with React, Vite, Leaflet and heatmap.js. Uses Cloudflare's in-browser speedtest.
 
----
-
-## Previous README (kept for history)
-
-```markdown
-This open-source web app visualizes WiFi coverage as a heatmap. Users can run speed tests at different locations on a map, leveraging @cloudflare/speedtest and browser geolocation. Results are displayed interactively using Leaflet.
-
-Features
-- Interactive map for adding measurement points
-- Speed tests using @cloudflare/speedtest
-- Geolocation API integration
-- Heatmap visualization
-
-Getting Started
-1. Install dependencies: `npm install`
-2. Start development server: `npm run dev`
-
-Tech Stack
-- React + Vite
-- Leaflet
-- @cloudflare/speedtest
-
-License
-MIT
-```
