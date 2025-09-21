@@ -368,6 +368,12 @@ function App() {
           </div>
         </div>
       </main>
+      <footer style={{ width: '100%', padding: '1em 0', textAlign: 'center', background: '#fff', borderTop: '1px solid rgba(0,0,0,0.04)', marginTop: '1em' }}>
+        <div style={{ width: '100%', maxWidth: '900px', margin: '0 auto', color: '#666', fontSize: '0.9em' }}>
+          <div>Built with ❤️ — open-source. Data stays in your browser only.</div>
+          <div style={{ marginTop: '0.5em' }}>Export/Import available. See <strong>README.md</strong> for details.</div>
+        </div>
+      </footer>
     </div>
   );
 }
