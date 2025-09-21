@@ -25,6 +25,19 @@ function savePoints(points) {
   localStorage.setItem('wifi_points', JSON.stringify(points));
 }
 
+// Parse a JSON string (from import) into cleaned points array
+function parsePointsFromJson(jsonStr) {
+  const parsed = JSON.parse(jsonStr);
+  if (!Array.isArray(parsed)) throw new Error('Invalid format: expected an array');
+  const cleaned = parsed.map(it => ({
+    lat: Number(it.lat),
+    lng: Number(it.lng),
+    download: it.download == null ? null : Number(it.download),
+    upload: it.upload == null ? null : Number(it.upload),
+  })).filter(it => !isNaN(it.lat) && !isNaN(it.lng));
+  return cleaned;
+}
+
 function App() {
   const mapRef = useRef(null);
   const [points, setPoints] = useState(getStoredPoints());
@@ -374,3 +387,4 @@ function App() {
 }
 
 export default App;
+export { getStoredPoints, savePoints, parsePointsFromJson };
