@@ -84,7 +84,7 @@ function App() {
     const statMid = Math.round((statMin + statMax) / 2);
     const heatmapData = {
       max: statMax || 100,
-      data: points.map(pt => ({ lat: pt.lat, lng: pt.lng, count: pt.download || 0 }))
+      data: points.map(pt => ({ lat: pt.lat, lng: pt.lng, value: pt.download || 0 }))
     };
 
     if (mapRef.current._heatLayer) {
@@ -104,9 +104,9 @@ function App() {
         valueField: 'value'
       };
       const heatmapLayer = new HeatmapOverlay(cfg);
-      mapRef.current.addLayer(heatmapLayer);
       // set data
       heatmapLayer.setData(heatmapData);
+      mapRef.current.addLayer(heatmapLayer);
       mapRef.current._heatLayer = heatmapLayer;
     }
       // Update legend dynamically based on download values
