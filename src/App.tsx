@@ -1,6 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+// Import marker images so Vite copies them and we can set the correct URLs for Leaflet
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerRetina from 'leaflet/dist/images/marker-icon-2x.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+
+// Ensure Leaflet uses the Vite-resolved asset URLs (fixes missing marker-icon.png on GH Pages)
+if ((L as any).Icon && (L as any).Icon.Default) {
+  ;(L as any).Icon.Default.mergeOptions({
+    iconUrl: markerIcon,
+    iconRetinaUrl: markerRetina,
+    shadowUrl: markerShadow,
+  })
+}
 import './App.css'
 import HeatmapOverlay from 'heatmap.js/plugins/leaflet-heatmap'
 import SpeedTest from '@cloudflare/speedtest'
