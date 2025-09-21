@@ -38,9 +38,11 @@ function App() {
 
   useEffect(() => {
     if (!mapRef.current) {
-      mapRef.current = L.map('map').setView([51.505, -0.09], 13);
+      // allow very high max zoom (per user request)
+      mapRef.current = L.map('map', { maxZoom: 25 }).setView([51.505, -0.09], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
+        maxZoom: 25,
       }).addTo(mapRef.current);
 
       // Allow user to set a point by clicking on the map
@@ -83,8 +85,44 @@ function App() {
       const intensity = Math.min(1, (pt.download || 0) / 100);
       return [pt.lat, pt.lng, intensity];
     });
+    // compute gradient colors based on download values so legend and heatmap match
+    let lowColor = '#1976d2';
+    let midColor = '#ffb74d';
+    let highColor = '#e53935';
+    let statMin = 0, statMid = 0, statMax = 0;
+    const downloads = points.map(p => (p.download || 0)).filter(v => !isNaN(v));
+    if (downloads.length > 0) {
+      statMin = Math.round(Math.min(...downloads));
+      statMax = Math.round(Math.max(...downloads));
+      statMid = Math.round((statMin + statMax) / 2);
+      const hexToRgb = (hex) => hex.replace('#','').match(/.{2}/g).map(h=>parseInt(h,16));
+      const rgbToHex = (r,g,b) => '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+      const mix = (c1, c2, t) => {
+        const r = Math.round(c1[0] + (c2[0]-c1[0])*t);
+        const g = Math.round(c1[1] + (c2[1]-c1[1])*t);
+        const b = Math.round(c1[2] + (c2[2]-c1[2])*t);
+        return rgbToHex(r,g,b);
+      };
+      const blue = hexToRgb('#1976d2');
+      const orange = hexToRgb('#ffb74d');
+      const red = hexToRgb('#e53935');
+      const colorFor = (v) => {
+        if (statMax === statMin) return rgbToHex(...blue);
+        const norm = (v - statMin) / (statMax - statMin);
+        if (norm <= 0.5) return mix(blue, orange, norm / 0.5);
+        return mix(orange, red, (norm - 0.5) / 0.5);
+      };
+      lowColor = colorFor(statMin);
+      midColor = colorFor(statMid);
+      highColor = colorFor(statMax);
+    }
     if (heatData.length > 0) {
-      const heat = L.heatLayer(heatData, { radius: 25, blur: 0, maxZoom: 20 }).addTo(mapRef.current);
+      const gradient = {
+        0.0: lowColor,
+        0.5: midColor,
+        1.0: highColor,
+      };
+      const heat = L.heatLayer(heatData, { radius: 25, blur: 0, maxZoom: 20, minOpacity: 0.1, gradient }).addTo(mapRef.current);
       mapRef.current._heatLayer = heat;
     }
       // Update legend dynamically based on download values
@@ -94,40 +132,12 @@ function App() {
           if (!points || points.length === 0) {
             legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div><div style="font-size:12px;color:#666">No data</div>`;
           } else {
-            const downloads = points.map(p => (p.download || 0)).filter(v => !isNaN(v));
-            const min = Math.round(Math.min(...downloads));
-            const max = Math.round(Math.max(...downloads));
-            const mid = Math.round((min + max) / 2);
-            // color interpolation helper
-            const hexToRgb = (hex) => hex.replace('#','').match(/.{2}/g).map(h=>parseInt(h,16));
-            const rgbToHex = (r,g,b) => '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
-            const mix = (c1, c2, t) => {
-              const r = Math.round(c1[0] + (c2[0]-c1[0])*t);
-              const g = Math.round(c1[1] + (c2[1]-c1[1])*t);
-              const b = Math.round(c1[2] + (c2[2]-c1[2])*t);
-              return rgbToHex(r,g,b);
-            };
-            const blue = hexToRgb('#1976d2');
-            const orange = hexToRgb('#ffb74d');
-            const red = hexToRgb('#e53935');
-            const colorFor = (v) => {
-              if (max === min) return rgbToHex(...blue);
-              // normalize 0..1 within min..max
-              const norm = (v - min) / (max - min);
-              // split at 0.5: blue->orange->red
-              if (norm <= 0.5) {
-                return mix(blue, orange, norm / 0.5);
-              }
-              return mix(orange, red, (norm - 0.5) / 0.5);
-            };
-            const lowColor = colorFor(min);
-            const midColor = colorFor(mid);
-            const highColor = colorFor(max);
+            // reuse computed statMin/statMid/statMax and colors
             legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div>
               <div style="font-size:12px;color:#333;margin-bottom:6px;">Intensity ≈ download (Mbps)</div>
-              <div style="display:flex;align-items:center;gap:8px;"> <span style="width:18px;height:10px;background:${lowColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${min}</span> </div>
-              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:${midColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${mid}</span> </div>
-              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:${highColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${max}</span> </div>`;
+              <div style="display:flex;align-items:center;gap:8px;"> <span style="width:18px;height:10px;background:${lowColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMin}</span> </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:${midColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMid}</span> </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:${highColor};display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMax}</span> </div>`;
           }
         }
       } catch (e) {
