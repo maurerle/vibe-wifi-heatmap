@@ -56,7 +56,8 @@ function App() {
         color: 'blue',
         fillColor: '#30f',
         fillOpacity: 0.5,
-        radius: 20 + pt.download * 2,
+        radius: 20,
+        //radius: 20 + pt.download * 2,
       }).addTo(mapRef.current).bindPopup(
         `Download: ${pt.download} Mbps<br/>Upload: ${pt.upload} Mbps`
       );
@@ -124,8 +125,8 @@ function App() {
       }
     speedtestRef.current.onFinish = results => {
         console.log(results.getSummary())
-        const download = Math.round(results.downloadSpeedMbps * 100) / 100;
-        const upload = Math.round(results.uploadSpeedMbps * 100) / 100;
+        const download = Math.round(results.download * 100) / 100;
+        const upload = Math.round(results.upload * 100) / 100;
         // Store result for current location
         let updated = false;
         const newPoints = points.map(pt => {
