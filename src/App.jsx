@@ -65,8 +65,8 @@ function App() {
           return div;
       };
       legend.addTo(mapRef.current);
-        // remember the legend DOM so we can update it when points change
-  try { mapRef.current._legendDiv = legend.getContainer(); } catch { mapRef.current._legendDiv = null; }
+      // remember the legend DOM so we can update it when points change
+      mapRef.current._legendDiv = legend.getContainer();
     }
     // Clear existing markers
     mapRef.current.eachLayer(layer => {
@@ -76,7 +76,7 @@ function App() {
     });
     // Remove previous heat layer if present
     if (mapRef.current._heatLayer) {
-      try { mapRef.current.removeLayer(mapRef.current._heatLayer); } catch { /* ignore */ }
+      mapRef.current.removeLayer(mapRef.current._heatLayer);
       mapRef.current._heatLayer = null;
     }
     // Build heat data as objects for heatmap.js: {lat, lng, value}
@@ -91,7 +91,7 @@ function App() {
     };
 
     if (mapRef.current._heatLayer) {
-      try { mapRef.current.removeLayer(mapRef.current._heatLayer); } catch { /* ignore */ }
+      mapRef.current.removeLayer(mapRef.current._heatLayer);
       mapRef.current._heatLayer = null;
     }
 
@@ -113,23 +113,19 @@ function App() {
       mapRef.current._heatLayer = heatmapLayer;
     }
       // Update legend dynamically based on download values
-      try {
-        const legendDiv = mapRef.current && mapRef.current._legendDiv;
-        if (legendDiv) {
-          if (!points || points.length === 0) {
-            legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div><div style="font-size:12px;color:#666">No data</div>`;
-          } else {
-            // reuse computed statMin/statMid/statMax and colors (metric-aware)
-            const metricLabel = heatMetric === 'upload' ? 'upload' : 'download';
-            legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div>
-              <div style="font-size:12px;color:#333;margin-bottom:6px;">Intensity ≈ ${metricLabel} (Mbps)</div>
-              <div style="display:flex;align-items:center;gap:8px;"> <span style="width:18px;height:10px;background:blue;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMin}</span> </div>
-              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:orange;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMid}</span> </div>
-              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:red;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMax}</span> </div>`;
-          }
+      const legendDiv = mapRef.current && mapRef.current._legendDiv;
+      if (legendDiv) {
+        if (!points || points.length === 0) {
+          legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div><div style="font-size:12px;color:#666">No data</div>`;
+        } else {
+          // reuse computed statMin/statMid/statMax and colors (metric-aware)
+          const metricLabel = heatMetric === 'upload' ? 'upload' : 'download';
+          legendDiv.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Heatmap</div>
+            <div style="font-size:12px;color:#333;margin-bottom:6px;">Intensity ≈ ${metricLabel} (Mbps)</div>
+            <div style="display:flex;align-items:center;gap:8px;"> <span style="width:18px;height:10px;background:blue;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMin}</span> </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:orange;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMid}</span> </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"> <span style="width:18px;height:10px;background:red;display:inline-block;border-radius:2px"></span> <span style="font-size:12px">${statMax}</span> </div>`;
         }
-      } catch {
-        // ignore legend update errors
       }
     // Show current location marker
     if (currentLocation) {
@@ -220,7 +216,6 @@ function App() {
         const download = Math.round(summary.download / 1e6 * 100) / 100;
         const upload = Math.round(summary.upload / 1e6 * 100) / 100;
 
-        console.log(`Download: ${download} Mbps, Upload: ${upload} Mbps`);
         // Store result for current location
         let updated = false;
         const newPoints = points.map(pt => {
