@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
+import "leaflet.heat";
 
 import SpeedTest from '@cloudflare/speedtest';
 import { useRef as useReactRef } from 'react';
@@ -62,7 +63,7 @@ function App() {
       return [pt.lat, pt.lng, intensity];
     });
     if (heatData.length > 0) {
-      const heat = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 17 }).addTo(mapRef.current);
+      const heat = L.heatLayer(heatData, { radius: 25, blur: 0, maxZoom: 17 }).addTo(mapRef.current);
       mapRef.current._heatLayer = heat;
     }
     // Show current location marker
